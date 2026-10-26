@@ -1,6 +1,26 @@
 import express from "express"
 const router = express.Router()
 
+
+
+// Crear una cotización
+router.post("/", async (req, res)=>{
+    try{
+    const {clientName, email, phone, jobDescription} = req.body
+    const cliente = new quotation({clientName, email, phone, jobDescription})
+    const savedCliente = await cliente.save()
+
+    if(savedCliente){
+        res.status(201).json({message: "Su cotizacion ha sido creada ", usuario: savedUsuario})
+    }
+    }catch(error){
+        console.error("Error al crear la cotizacion", error)
+        res.status(500).json({ error: "Internal server error"})
+    }
+
+})
+
+
 //Consulta la información de la empresa vinculada al usuario logueado.
 router.get("/", ()=>{
     console.log("login validado")

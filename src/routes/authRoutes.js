@@ -1,39 +1,50 @@
-import express from "express"
+import express from 'express'
+import User from '../models/UserModel.js'
 const router = express.Router() //envia las rutas al server.js
 
+// Enpoints [/api/auth/me, /api/auth/login, /api/auth/register]
 
-// Obtener la peticion de login, crear cuenta o olvide la contraseña.
-router.get("/", (req, res)=>{
-    console.log("Usuario registrado");
+// HTTP Request Methods| GET and POST
 
-    res.send("Petición GET exitosa a /api/auth")
+// GET|Solicitar o obtener un recurso
+
+// Consultar el perfil del usuario.
+router.get('/me', (req, res) => {
+    console.log('Vista del perfil')
+    res.send('Petición GET exitosa a /api/auth/me')
 })
 
 // POST|Crear un recurso, como json pero se debe pasar a un objeto de js
 
 // Iniciar sesion
-router.post("/login", (req,res)=>{
-    const {user, password} = req.body
-    console.log(req.body)
-    console.log(user, password)
+router.post('/login', async (req, res) => {
+    try {
+        const { user, password } = req.body
+        const usuario = await User.findOne()
+        const savedUsuario = await usuario.save()
 
-    res.status(200).json({
-        mensaje: "Login recibido con éxito en el backend",
-        datosRecibidos: req.body
-    })
+        if (savedUsuario) {
+            res.status(201).json({
+                message: 'Inicio de sesion exitoso',
+                usuario: savedUsuario,
+            })
+        }
+    } catch (error) {
+        console.error('Error al inciar sesion', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
 })
 
-//Crear un usuario nuevo
-router.post("/register", (req,res)=>{
-    const {name,user, email, password, companyId } = req.body
+// Registra un usuario nuevo
+router.post('/register', (req, res) => {
+    const { name, email, user, password } = req.body
     console.log(req.body)
-    console.log(name, user, email, password, companyId)
+    console.log(name, user, email, password)
 
     res.status(201).json({
-        mensaje: "Usuario registrado con éxito en el backend",
-        usuario: { name, email, companyId }
+        mensaje: 'Usuario registrado con éxito en el backend',
+        usuario: { name, email, user },
     })
 })
-
 
 export default router
