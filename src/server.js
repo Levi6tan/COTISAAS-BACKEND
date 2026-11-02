@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3001
 
 //midleware use() para procesar JSON en el req.body
 app.use(express.json())
+//Rutas API
 app.use('/api/auth', authRoutes)
 app.use('/api/company', quatationsRoutes)
 

@@ -1,5 +1,6 @@
 import express from 'express'
-import User from '../models/UserModel.js'
+import UserModel from '../models/UserModel.js'
+import { registerUser } from '../controllers/authControllers.js'
 const router = express.Router() //envia las rutas al server.js
 
 // Enpoints [/api/auth/me, /api/auth/login, /api/auth/register]
@@ -8,8 +9,8 @@ const router = express.Router() //envia las rutas al server.js
 
 // GET|Solicitar o obtener un recurso
 
-// Consultar el perfil del usuario.
-router.get('/me', (req, res) => {
+// Verficar si el usuario inicio sesion
+router.get('/profile', (req, res) => {
     console.log('Vista del perfil')
     res.send('Petición GET exitosa a /api/auth/me')
 })
@@ -35,8 +36,11 @@ router.post('/login', async (req, res) => {
     }
 })
 
-// Registra un usuario nuevo
-router.post('/register', (req, res) => {
+// Registra un usuario
+router.post('/register', registerUser)
+
+// Desloguear el usuario
+router.post('/logout', (req, res) => {
     const { name, email, user, password } = req.body
     console.log(req.body)
     console.log(name, user, email, password)
