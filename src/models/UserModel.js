@@ -1,6 +1,4 @@
 import mongoose from 'mongoose'
-import { maxLength, minLength } from 'zod'
-import { required } from 'zod/mini'
 
 const userSchema = new mongoose.Schema(
     {
@@ -38,6 +36,6 @@ const userSchema = new mongoose.Schema(
     { timestamps: true }
 )
 
-const UserModel = new mongoose.model('User', userSchema)
+const UserModel = mongoose.models.User || mongoose.model('User', userSchema)
 
 export default UserModel

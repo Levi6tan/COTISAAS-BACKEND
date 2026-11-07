@@ -1,50 +1,48 @@
-import express from "express"
+import express from 'express'
+import company from '../models/Company.js'
+
 const router = express.Router()
 
-
-
-// Crear una cotización
-router.post("/", async (req, res)=>{
-    try{
-    const {clientName, email, phone, jobDescription} = req.body
-    const cliente = new quotation({clientName, email, phone, jobDescription})
-    const savedCliente = await cliente.save()
-
-    if(savedCliente){
-        res.status(201).json({message: "Su cotizacion ha sido creada ", usuario: savedUsuario})
+// Consulta la información de la empresa vinculada al usuario logueado
+router.get('/', async (req, res) => {
+    try {
+        res.status(200).json({
+            message: 'Información de empresa obtenida con éxito',
+        })
+    } catch (error) {
+        console.error('Error al consultar empresa:', error)
+        res.status(500).json({ error: 'Error interno del servidor' })
     }
-    }catch(error){
-        console.error("Error al crear la cotizacion", error)
-        res.status(500).json({ error: "Internal server error"})
+})
+
+// Registro de la empresa
+router.post('/', async (req, res) => {
+    try {
+        const { companyName, nit, phone, terms } = req.body
+        console.log('Datos de empresa recibidos:', { companyName, nit, phone, terms })
+
+        res.status(200).json({
+            message: 'Empresa registrada con éxito en el backend',
+        })
+    } catch (error) {
+        console.error('Error al registrar empresa:', error)
+        res.status(500).json({ error: 'Error interno del servidor' })
     }
-
 })
 
+// Actualizar datos de la empresa
+router.put('/', async (req, res) => {
+    try {
+        const { companyName, nit, phone, terms } = req.body
+        console.log('Actualización de empresa:', { companyName, nit, phone, terms })
 
-//Consulta la información de la empresa vinculada al usuario logueado.
-router.get("/", ()=>{
-    console.log("login validado")
-})
-
-//registro de la empresa
-router.post("/", (req,res)=>{
-    const {companyName, nit, phone, terms} = req.body
-    console.log()
-    console.log(req.body)
-
-    res.status(200).json({
-        message: "Login recibido con éxito en el backend"
-    })
-})
-
-// Actulizar datos de la empresa
-router.put("/",(req,res)=>{
-    const {companyName, nit, phone, terms} = req.body
-    console.log({companyName, nit, phone, terms})
-
-    res.status(200).json({
-        message: "Datos actulizados correctamente"
-    })
+        res.status(200).json({
+            message: 'Datos actualizados correctamente',
+        })
+    } catch (error) {
+        console.error('Error al actualizar empresa:', error)
+        res.status(500).json({ error: 'Error interno del servidor' })
+    }
 })
 
 export default router

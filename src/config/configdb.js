@@ -1,5 +1,13 @@
 import mongoose from 'mongoose'
-//se exporta una funcion que permitira conectar con la bd
+
+// Eventos de conexión para evitar que un fallo de red tumbe el proceso
+mongoose.connection.on('error', (error) => {
+    console.error('Error en la conexión con MongoDB:', error)
+})
+
+mongoose.connection.on('disconnected', () => {
+    console.warn('Conexión con MongoDB desconectada')
+})
 
 export const connectDB = async () => {
     try {
@@ -7,8 +15,7 @@ export const connectDB = async () => {
         await mongoose.connect(dbURI)
         console.log('MongoDB conectado correctamente')
     } catch (error) {
-        console.error('Error al conectar con MongoDB', error)
-        process.exit(1)
+        console.error('Error al conectar con MongoDB:', error.message)
     }
 }
 
