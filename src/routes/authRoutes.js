@@ -12,6 +12,7 @@ const router = express.Router() // envia las rutas al server.js
 
 // Verificar si el usuario inicio sesion
 router.get('/profile', profile)
+router.get('/me', profile)
 
 // Iniciar sesion
 router.post('/login', loginUser)

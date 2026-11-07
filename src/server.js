@@ -45,6 +45,7 @@ app.use((req, res, next) => {
 
 // Rutas API
 app.use('/api/auth', authRoutes)
+app.use('/api/quotations', quotationsRoutes)
 app.use('/api/company', quotationsRoutes)
 
 // Manejador centralizado de errores para Express

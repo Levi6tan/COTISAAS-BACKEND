@@ -1,48 +1,35 @@
 import express from 'express'
-import company from '../models/Company.js'
+import {
+    createQuotation,
+    getQuotations,
+    getQuotationById,
+    updateQuotation,
+    deleteQuotation,
+} from '../controllers/quotationControllers.js'
+import { verifyAuth } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
 
-// Consulta la información de la empresa vinculada al usuario logueado
-router.get('/', async (req, res) => {
-    try {
-        res.status(200).json({
-            message: 'Información de empresa obtenida con éxito',
-        })
-    } catch (error) {
-        console.error('Error al consultar empresa:', error)
-        res.status(500).json({ error: 'Error interno del servidor' })
-    }
-})
+// Todas las rutas de cotizaciones requieren que el usuario esté autenticado mediante JWT
+router.use(verifyAuth)
 
-// Registro de la empresa
-router.post('/', async (req, res) => {
-    try {
-        const { companyName, nit, phone, terms } = req.body
-        console.log('Datos de empresa recibidos:', { companyName, nit, phone, terms })
+// Endpoints CRUD del Módulo 2
+// POST   /api/quotations       - Crear una cotización
+router.post('/', createQuotation)
 
-        res.status(200).json({
-            message: 'Empresa registrada con éxito en el backend',
-        })
-    } catch (error) {
-        console.error('Error al registrar empresa:', error)
-        res.status(500).json({ error: 'Error interno del servidor' })
-    }
-})
+// GET    /api/quotations       - Listar las cotizaciones propias del usuario
+router.get('/', getQuotations)
 
-// Actualizar datos de la empresa
-router.put('/', async (req, res) => {
-    try {
-        const { companyName, nit, phone, terms } = req.body
-        console.log('Actualización de empresa:', { companyName, nit, phone, terms })
+// GET    /api/quotations/:id   - Consultar una cotización propia específica
+router.get('/:id', getQuotationById)
 
-        res.status(200).json({
-            message: 'Datos actualizados correctamente',
-        })
-    } catch (error) {
-        console.error('Error al actualizar empresa:', error)
-        res.status(500).json({ error: 'Error interno del servidor' })
-    }
-})
+// PATCH  /api/quotations/:id   - Editar una cotización propia (actualización parcial)
+router.patch('/:id', updateQuotation)
+
+// PUT    /api/quotations/:id   - Editar una cotización propia (soporte completo)
+router.put('/:id', updateQuotation)
+
+// DELETE /api/quotations/:id   - Eliminar una cotización propia
+router.delete('/:id', deleteQuotation)
 
 export default router
