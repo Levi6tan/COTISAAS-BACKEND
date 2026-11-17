@@ -1,14 +1,16 @@
 import mongoose from 'mongoose'
 import QuotationModel from '../models/QuotationModel.js'
+import UserModel from '../models/UserModel.js'
 import {
     createQuotationSchema,
     updateQuotationSchema,
 } from '../schemas/quotationSchema.js'
 
-// Función auxiliar para calcular ítems, subtotales y total
-const calculateTotals = (items = [], tax = 0) => {
+// Función auxiliar del Motor de Cálculo Financiero (Estándar Colombia / DIAN)
+const calculateTotals = (items = [], discount = 0, applyIva = false) => {
     const calculatedItems = items.map((item) => {
         const concept = item.concept || item.description || 'Sin concepto'
+        const unit = item.unit || 'Und'
         const quantity = Number(item.quantity) >= 0 ? Number(item.quantity) : 1
         const unitPrice =
             Number(item.unitPrice ?? item.price ?? 0) >= 0
@@ -18,22 +20,38 @@ const calculateTotals = (items = [], tax = 0) => {
 
         return {
             concept,
+            unit,
             quantity,
             unitPrice,
             subtotal,
         }
     })
 
+    // 1. Subtotal general (suma de conceptos)
     const subtotal = Number(
         calculatedItems.reduce((acc, curr) => acc + curr.subtotal, 0).toFixed(2)
     )
-    const taxValue = Number(tax) >= 0 ? Number(Number(tax).toFixed(2)) : 0
-    const total = Number((subtotal + taxValue).toFixed(2))
+
+    // 2. Descuento comercial
+    const rawDiscount = Number(discount) >= 0 ? Number(discount) : 0
+    const discountValue = Number(Math.min(subtotal, rawDiscount).toFixed(2))
+
+    // 3. Base gravable
+    const taxableBase = Math.max(0, subtotal - discountValue)
+
+    // 4. IVA Colombia (19%)
+    const ivaRate = 0.19
+    const tax = applyIva ? Number((taxableBase * ivaRate).toFixed(2)) : 0
+
+    // 5. Total final a pagar (COP)
+    const total = Number((taxableBase + tax).toFixed(2))
 
     return {
         items: calculatedItems,
         subtotal,
-        tax: taxValue,
+        discount: discountValue,
+        applyIva: Boolean(applyIva),
+        tax,
         total,
     }
 }
@@ -43,20 +61,58 @@ export const createQuotation = async (req, res) => {
     try {
         const validatedData = createQuotationSchema.parse(req.body)
 
-        // Calcular automáticamente subtotales de cada concepto y el total
-        const { items, subtotal, tax, total } = calculateTotals(
+        // Traer datos del usuario creador para asignar el cotizador
+        const user = await UserModel.findById(req.user.id).select('username email')
+        const quoterName = validatedData.quoterName || user?.username || 'Asesor Comercial'
+
+        // Generar consecutivo tipo COT-2026-001 automáticamente si no viene
+        let quoteNumber = validatedData.quoteNumber
+        if (!quoteNumber) {
+            const currentYear = new Date().getFullYear()
+            const count = await QuotationModel.countDocuments({
+                userId: req.user.id,
+                quoteNumber: new RegExp(`^COT-${currentYear}-`),
+            })
+            quoteNumber = `COT-${currentYear}-${String(count + 1).padStart(3, '0')}`
+        }
+
+        // Fechas de emisión y validez (por defecto 15 días calendario)
+        const issueDate = validatedData.issueDate || new Date()
+        let validUntil = validatedData.validUntil
+        if (!validUntil) {
+            const defaultValid = new Date(issueDate)
+            defaultValid.setDate(defaultValid.getDate() + 15)
+            validUntil = defaultValid
+        }
+
+        // Motor de cálculo financiero con IVA y descuentos
+        const { items, subtotal, discount, applyIva, tax, total } = calculateTotals(
             validatedData.items,
-            validatedData.tax
+            validatedData.discount,
+            validatedData.applyIva
         )
 
         const newQuotation = await QuotationModel.create({
             userId: req.user.id,
+            quoteNumber,
+            quoterName,
+            quoterId: req.user.id,
             clientName: validatedData.clientName,
+            clientDocumentType: validatedData.clientDocumentType || 'NIT',
+            clientDocument: validatedData.clientDocument || '',
+            clientPhone: validatedData.clientPhone || '',
+            clientEmail: validatedData.clientEmail || '',
+            issueDate,
+            validUntil,
             description: validatedData.description || '',
             items,
             subtotal,
+            discount,
+            applyIva,
             tax,
             total,
+            paymentTerms: validatedData.paymentTerms || '50% Anticipo - 50% Contra entrega',
+            deliveryTime: validatedData.deliveryTime || '3 a 5 días hábiles',
             status: validatedData.status || 'pendiente',
             notes: validatedData.notes || '',
         })
@@ -88,10 +144,15 @@ export const getQuotations = async (req, res) => {
         const { search, status } = req.query
         const filter = { userId: req.user.id }
 
-        // Búsqueda opcional por nombre del cliente o descripción
+        // Búsqueda opcional por cliente, descripción, consecutivo o documento
         if (search && search.trim() !== '') {
             const regex = new RegExp(search.trim(), 'i')
-            filter.$or = [{ clientName: regex }, { description: regex }]
+            filter.$or = [
+                { clientName: regex },
+                { description: regex },
+                { quoteNumber: regex },
+                { clientDocument: regex },
+            ]
         }
 
         // Filtro opcional por estado
@@ -150,7 +211,7 @@ export const getQuotationById = async (req, res) => {
     }
 }
 
-// 4. PATCH /api/quotations/:id - Editar una cotización propia
+// 4. PATCH / PUT /api/quotations/:id - Editar una cotización propia
 export const updateQuotation = async (req, res) => {
     try {
         const { id } = req.params
@@ -175,25 +236,59 @@ export const updateQuotation = async (req, res) => {
             })
         }
 
-        // Si se actualizan ítems o impuestos, recalcular subtotales y total
+        // Recalcular subtotales, IVA y total si se actualizan conceptos, descuento o IVA
         const itemsToCalculate =
             validatedData.items !== undefined
                 ? validatedData.items
                 : existingQuotation.items
-        const taxToCalculate =
-            validatedData.tax !== undefined ? validatedData.tax : existingQuotation.tax
+        const discountToCalculate =
+            validatedData.discount !== undefined
+                ? validatedData.discount
+                : existingQuotation.discount
+        const applyIvaToCalculate =
+            validatedData.applyIva !== undefined
+                ? validatedData.applyIva
+                : existingQuotation.applyIva
 
-        const { items, subtotal, tax, total } = calculateTotals(
+        const { items, subtotal, discount, applyIva, tax, total } = calculateTotals(
             itemsToCalculate,
-            taxToCalculate
+            discountToCalculate,
+            applyIvaToCalculate
         )
 
-        // Actualizar campos
+        // Actualizar cabecera y metadatos
         if (validatedData.clientName !== undefined) {
             existingQuotation.clientName = validatedData.clientName
         }
+        if (validatedData.clientDocumentType !== undefined) {
+            existingQuotation.clientDocumentType = validatedData.clientDocumentType
+        }
+        if (validatedData.clientDocument !== undefined) {
+            existingQuotation.clientDocument = validatedData.clientDocument
+        }
+        if (validatedData.clientPhone !== undefined) {
+            existingQuotation.clientPhone = validatedData.clientPhone
+        }
+        if (validatedData.clientEmail !== undefined) {
+            existingQuotation.clientEmail = validatedData.clientEmail
+        }
+        if (validatedData.issueDate !== undefined) {
+            existingQuotation.issueDate = validatedData.issueDate
+        }
+        if (validatedData.validUntil !== undefined) {
+            existingQuotation.validUntil = validatedData.validUntil
+        }
+        if (validatedData.quoterName !== undefined) {
+            existingQuotation.quoterName = validatedData.quoterName
+        }
         if (validatedData.description !== undefined) {
             existingQuotation.description = validatedData.description
+        }
+        if (validatedData.paymentTerms !== undefined) {
+            existingQuotation.paymentTerms = validatedData.paymentTerms
+        }
+        if (validatedData.deliveryTime !== undefined) {
+            existingQuotation.deliveryTime = validatedData.deliveryTime
         }
         if (validatedData.status !== undefined) {
             existingQuotation.status = validatedData.status
@@ -202,8 +297,11 @@ export const updateQuotation = async (req, res) => {
             existingQuotation.notes = validatedData.notes
         }
 
+        // Asignar cálculos financieros
         existingQuotation.items = items
         existingQuotation.subtotal = subtotal
+        existingQuotation.discount = discount
+        existingQuotation.applyIva = applyIva
         existingQuotation.tax = tax
         existingQuotation.total = total
 
@@ -264,4 +362,3 @@ export const deleteQuotation = async (req, res) => {
         })
     }
 }
-

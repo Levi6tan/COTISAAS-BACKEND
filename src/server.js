@@ -27,7 +27,7 @@ const PORT = process.env.PORT || 3000
 app.use(
     cors({
         origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         credentials: true, // Permite que viaje la cookie hacia el backend
     })
 )
@@ -46,6 +46,7 @@ app.use((req, res, next) => {
 // Rutas API
 app.use('/api/auth', authRoutes)
 app.use('/api/quotations', quotationsRoutes)
+app.use('/api/quotes', quotationsRoutes)
 app.use('/api/company', quotationsRoutes)
 
 // Manejador centralizado de errores para Express

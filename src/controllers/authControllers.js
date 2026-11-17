@@ -148,7 +148,14 @@ export const registerUser = async (req, res) => {
 }
 
 export const profile = async (req, res) => {
-    const token = req.cookies?.accessToken
+    const tokenFromCookie = req.cookies?.accessToken
+    const authHeader = req.headers?.authorization
+    const tokenFromHeader =
+        authHeader && authHeader.startsWith('Bearer ')
+            ? authHeader.split(' ')[1]
+            : null
+    const token = tokenFromCookie || tokenFromHeader
+
     if (!token) {
         return res.status(200).json(null)
     }
