@@ -4,23 +4,23 @@ import {
     logoutUser,
     profile,
     registerUser,
+    forgotPassword,
+    resetPassword,
 } from '../controllers/authControllers.js'
 
-const router = express.Router() // envia las rutas al server.js
+const router = express.Router()
 
-// Endpoints [/api/auth/profile, /api/auth/login, /api/auth/register, /api/auth/logout]
-
-// Verificar si el usuario inicio sesion
+// Verificar si el usuario inició sesión
 router.get('/profile', profile)
 router.get('/me', profile)
 
-// Iniciar sesion
+// Autenticación básica
 router.post('/login', loginUser)
-
-// Registrar un usuario
 router.post('/register', registerUser)
-
-// Cerrar sesion
 router.post('/logout', logoutUser)
+
+// Recuperación de contraseña
+router.post('/forgot-password', forgotPassword)
+router.post('/reset-password', resetPassword)
 
 export default router

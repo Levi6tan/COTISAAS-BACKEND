@@ -2,9 +2,9 @@
 import { z } from 'zod'
 
 export const registerSchema = z.object({
-    username: z.string().trim().min(15).max(75),
-    email: z.string().email().min(6).max(254),
-    password: z.string().min(6).max(254),
+    username: z.string().trim().min(3, 'El nombre debe tener al menos 3 caracteres').max(75),
+    email: z.string().email('Correo electrónico inválido').min(6).max(254),
+    password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').max(254),
 })
 
 export const loginSchema = z
@@ -17,3 +17,12 @@ export const loginSchema = z
         message: 'Debes enviar un email o un username',
         path: ['email'],
     })
+
+export const forgotPasswordSchema = z.object({
+    email: z.string().email('Correo electrónico inválido').min(6).max(254),
+})
+
+export const resetPasswordSchema = z.object({
+    email: z.string().email('Correo electrónico inválido'),
+    newPassword: z.string().min(6, 'La nueva contraseña debe tener al menos 6 caracteres').max(254),
+})

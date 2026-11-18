@@ -1,6 +1,11 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import { loginSchema, registerSchema } from '../schemas/authSchema.js'
+import {
+    loginSchema,
+    registerSchema,
+    forgotPasswordSchema,
+    resetPasswordSchema,
+} from '../schemas/authSchema.js'
 import UserModel from '../models/UserModel.js'
 
 export const loginUser = async (req, res) => {
@@ -187,4 +192,51 @@ export const logoutUser = (req, res) => {
     })
         .status(200)
         .json({ message: 'Sesión cerrada exitosamente' })
+}
+
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = forgotPasswordSchema.parse(req.body)
+        const user = await UserModel.findOne({ email: email.toLowerCase().trim() })
+        if (!user) {
+            return res.status(404).json({
+                message: 'No existe una cuenta registrada con este correo electrónico',
+            })
+        }
+
+        return res.status(200).json({
+            message: 'Cuenta encontrada. Puedes ingresar tu nueva contraseña.',
+            email: user.email,
+        })
+    } catch (error) {
+        console.error('Error en forgotPassword:', error)
+        return res.status(400).json({
+            message: error.issues?.[0]?.message || 'Correo inválido o faltante',
+        })
+    }
+}
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { email, newPassword } = resetPasswordSchema.parse(req.body)
+        const user = await UserModel.findOne({ email: email.toLowerCase().trim() })
+        if (!user) {
+            return res.status(404).json({
+                message: 'No existe una cuenta registrada con este correo',
+            })
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+        user.password = hashedPassword
+        await user.save()
+
+        return res.status(200).json({
+            message: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión con tu nueva clave.',
+        })
+    } catch (error) {
+        console.error('Error en resetPassword:', error)
+        return res.status(400).json({
+            message: error.issues?.[0]?.message || 'Datos de recuperación inválidos',
+        })
+    }
 }

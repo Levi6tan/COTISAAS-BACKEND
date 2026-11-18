@@ -5,6 +5,8 @@ import {
     createQuotationSchema,
     updateQuotationSchema,
 } from '../schemas/quotationSchema.js'
+import { generateQuotationPDF } from '../services/pdfService.js'
+import { sendQuotationEmail } from '../services/emailService.js'
 
 // Función auxiliar del Motor de Cálculo Financiero (Estándar Colombia / DIAN)
 const calculateTotals = (items = [], discount = 0, applyIva = false) => {
@@ -359,6 +361,70 @@ export const deleteQuotation = async (req, res) => {
         return res.status(500).json({
             message: 'Error al eliminar la cotización',
             error: error.message,
+        })
+    }
+}
+
+// 6. POST /api/quotations/:id/send-email - Enviar cotización en PDF por correo electrónico
+export const sendQuotationEmailController = async (req, res) => {
+    try {
+        const { id } = req.params
+        const { email } = req.body || {}
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                message: 'El identificador de cotización no es válido',
+            })
+        }
+
+        const quotation = await QuotationModel.findOne({
+            _id: id,
+            userId: req.user.id,
+        })
+
+        if (!quotation) {
+            return res.status(404).json({
+                message: 'Cotización no encontrada o no pertenece al usuario autenticado',
+            })
+        }
+
+        const recipientEmail = (email || quotation.clientEmail || '').trim()
+        if (!recipientEmail || !recipientEmail.includes('@')) {
+            return res.status(400).json({
+                message: 'El cliente no tiene un correo electrónico válido registrado',
+            })
+        }
+
+        // Si se envió un correo nuevo en el cuerpo, actualizarlo en la cotización
+        if (email && email.trim() !== quotation.clientEmail) {
+            quotation.clientEmail = email.trim()
+        }
+
+        // 1. Generar el archivo PDF real de la cotización
+        const pdfBuffer = await generateQuotationPDF(quotation)
+
+        // 2. Enviar por correo con el PDF adjunto
+        const sendResult = await sendQuotationEmail({
+            quotation,
+            pdfBuffer,
+            recipientEmail,
+        })
+
+        // 3. Transición automática: si está en 'borrador', pasa a 'pendiente'
+        if (quotation.status === 'borrador') {
+            quotation.status = 'pendiente'
+        }
+        await quotation.save()
+
+        return res.status(200).json({
+            message: sendResult.message || `Cotización enviada exitosamente a ${recipientEmail}`,
+            quotation,
+            simulated: sendResult.simulated || false,
+        })
+    } catch (error) {
+        console.error('Error al enviar cotización por correo:', error)
+        return res.status(500).json({
+            message: error.message || 'Error al procesar el envío de la cotización',
         })
     }
 }
