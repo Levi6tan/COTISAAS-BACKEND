@@ -17,8 +17,8 @@ const formatCOP = (num) => {
  * @returns {Promise<{success: boolean, simulated: boolean, message: string}>}
  */
 export const sendQuotationEmail = async ({ quotation, pdfBuffer, recipientEmail }) => {
-    const emailUser = process.env.EMAIL_USER
-    const emailPass = process.env.EMAIL_PASS
+    const emailUser = (process.env.EMAIL_USER || '').trim()
+    const emailPass = (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
 
     const clientName = quotation.clientName || 'Estimado(a) Cliente'
     const quoteNumber = quotation.quoteNumber || 'COT-2026'
