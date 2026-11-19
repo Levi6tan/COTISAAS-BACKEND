@@ -59,4 +59,33 @@ export const createQuotationSchema = z.object({
     notes: z.string().trim().optional().default(''),
 })
 
-export const updateQuotationSchema = createQuotationSchema.partial()
+// Esquema de actualización parcial sin valores por defecto: con
+// createQuotationSchema.partial() los .default() se siguen aplicando y un
+// PATCH que solo envía { status } borraría items, descuento, IVA, etc.
+export const updateQuotationSchema = z
+    .object({
+        quoteNumber: z.string().trim(),
+        quoterName: z.string().trim(),
+        clientName: z
+            .string()
+            .trim()
+            .min(2, 'El nombre del cliente debe tener al menos 2 caracteres'),
+        clientDocumentType: z.enum(['NIT', 'CC', 'CE']),
+        clientDocument: z.string().trim(),
+        clientPhone: z.string().trim(),
+        clientEmail: z.string().trim().or(z.literal('')),
+        issueDate: z.coerce.date(),
+        validUntil: z.coerce.date(),
+        description: z.string().trim(),
+        items: z.array(itemSchema),
+        subtotal: z.coerce.number().min(0),
+        discount: z.coerce.number().min(0),
+        applyIva: z.coerce.boolean(),
+        tax: z.coerce.number().min(0),
+        total: z.coerce.number().min(0),
+        paymentTerms: z.string().trim(),
+        deliveryTime: z.string().trim(),
+        status: z.enum(['borrador', 'pendiente', 'aprobada', 'rechazada']),
+        notes: z.string().trim(),
+    })
+    .partial()

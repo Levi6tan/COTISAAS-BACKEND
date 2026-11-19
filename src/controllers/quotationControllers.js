@@ -400,20 +400,23 @@ export const sendQuotationEmailController = async (req, res) => {
             quotation.clientEmail = email.trim()
         }
 
-        // 1. Generar el archivo PDF real de la cotización
+        // 1. Transición automática antes de generar el PDF: si está en
+        // 'borrador', pasa a 'pendiente' para que el PDF se envíe con el
+        // estado correcto.
+        if (quotation.status === 'borrador') {
+            quotation.status = 'pendiente'
+        }
+
+        // 2. Generar el archivo PDF real de la cotización
         const pdfBuffer = await generateQuotationPDF(quotation)
 
-        // 2. Enviar por correo con el PDF adjunto
+        // 3. Enviar por correo con el PDF adjunto
         const sendResult = await sendQuotationEmail({
             quotation,
             pdfBuffer,
             recipientEmail,
         })
 
-        // 3. Transición automática: si está en 'borrador', pasa a 'pendiente'
-        if (quotation.status === 'borrador') {
-            quotation.status = 'pendiente'
-        }
         await quotation.save()
 
         return res.status(200).json({
